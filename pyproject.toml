@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "luma-door-unlocker"
+version = "0.1.0"
+description = "Raspberry Pi QR code scanner for Luma event check-ins"
+authors = ["Devasheesh Mishra <devasheeshmishra4@gmail.com>"]
+readme = "README.md"
+packages = [{include = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+opencv-python = "^4.8.0"
+pyzbar = "^0.1.9"
+requests = "^2.31.0"
+numpy = "^1.24.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.0"
+black = "^23.7.0"
+flake8 = "^6.0.0"
+
+[tool.poetry.scripts]
+luma-scanner = "src.main:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
