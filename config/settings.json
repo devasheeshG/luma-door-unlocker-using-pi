@@ -16,18 +16,10 @@
     },
     "camera": {
         "device_index": 0,
-        "frame_width": 1280,
-        "frame_height": 720,
-        "fps": 30,
-        "scan_interval": 0.1,
-        "frame_skip": 1,
-        "auto_focus": true,
-        "exposure_compensation": 0
+        "frame_width": 640,
+        "frame_height": 480
     },
     "qr": {
-        "url_pattern": "https://lu.ma/check-in/",
-        "duplicate_threshold": 2.0,
-        "min_size": 50,
-        "max_size": 500
+        "url_pattern": "https://lu.ma/check-in/"
     }
 }
