@@ -60,6 +60,8 @@ class QRScanner:
             QR code data if found, None otherwise
         """
         try:
+            debug(f"Scanning frame at {time.time()}")
+            
             # Convert frame to grayscale for better QR detection
             gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             
@@ -204,7 +206,6 @@ class QRScanner:
             self.camera.release()
             self.camera = None
         
-        cv2.destroyAllWindows()
         info("QR code scanning stopped")
     
     def __del__(self):
