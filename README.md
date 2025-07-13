@@ -31,6 +31,9 @@ A Raspberry Pi-based QR code scanner that automatically checks in guests to Luma
 sudo apt-get update
 sudo apt-get install libzbar0 libzbar-dev
 
+# For Raspberry Pi OS
+sudo apt-get install libgl1-mesa-glx
+
 # macOS
 brew install zbar
 
