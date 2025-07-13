@@ -2,46 +2,6 @@
 
 ### Request
 
-POST /auth/email/start-with-email HTTP/2
-Host: api.lu.ma
-Cookie: luma.did=deyiot7y83llvf6xbuij73wmq49aq7; luma.first-page=%2F; __cf_bm=yJYbh8LF09NWXyKv.D98vyQTmZ2hvYQVXNowPou_kB8-1752408814-1.0.1.1-n5Arl3FciF5E.KYGb_5zaEWkLFKIaShVNXX4TXGS0Xswh0W6QdZL3A6wIokn4NocUGLjxLUdm52DFSDteMFOSzsJLkuXbsSqA1ZE3PrkfFY; luma.native-referrer=https%3A%2F%2Flu.ma%2F
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:140.0) Gecko/20100101 Firefox/140.0
-Accept: */*
-Accept-Language: en
-Accept-Encoding: gzip, deflate, br
-Referer: https://lu.ma/
-X-Luma-Client-Version: d799f2bcdceec685f55811350f8eeffc67534a5f
-X-Luma-Web-Url: https://lu.ma/signin
-X-Luma-Client-Type: luma-web
-Content-Type: application/json
-Content-Length: 22
-Origin: https://lu.ma
-Sec-Fetch-Dest: empty
-Sec-Fetch-Mode: cors
-Sec-Fetch-Site: same-site
-Priority: u=0
-Te: trailers
-
-{"email":"sfo@zo.xyz"}
-
-### Response
-
-HTTP/2 200 OK
-Date: Sun, 13 Jul 2025 12:27:31 GMT
-Content-Type: application/json; charset=utf-8
-Vary: Origin
-Access-Control-Allow-Origin: https://lu.ma
-Access-Control-Allow-Credentials: true
-Cf-Cache-Status: DYNAMIC
-Strict-Transport-Security: max-age=2592000; preload
-X-Robots-Tag: noindex
-Server: cloudflare
-Cf-Ray: 95e8c65cff1f5850-SJC
-
-{"is_new_user":false,"has_password":true,"has_name":true,"has_phone_number":false}
-
-### Request
-
 POST /auth/sign-in-with-password HTTP/2
 Host: api.lu.ma
 Cookie: luma.did=deyiot7y83llvf6xbuij73wmq49aq7; luma.first-page=%2F; __cf_bm=yJYbh8LF09NWXyKv.D98vyQTmZ2hvYQVXNowPou_kB8-1752408814-1.0.1.1-n5Arl3FciF5E.KYGb_5zaEWkLFKIaShVNXX4TXGS0Xswh0W6QdZL3A6wIokn4NocUGLjxLUdm52DFSDteMFOSzsJLkuXbsSqA1ZE3PrkfFY; luma.native-referrer=https%3A%2F%2Flu.ma%2F

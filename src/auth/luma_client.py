@@ -35,13 +35,7 @@ class LumaClient:
         try:
             info(f"Starting authentication for {email}")
             
-            # Step 1: Start email authentication
-            start_auth_response = self._start_email_auth(email)
-            if not start_auth_response:
-                error("Failed to start email authentication")
-                return False
-            
-            # Step 2: Sign in with password
+            # Sign in with password
             auth_response = self._sign_in_with_password(email, password)
             if not auth_response:
                 error("Failed to sign in with password")
@@ -66,30 +60,6 @@ class LumaClient:
         except Exception as e:
             exception(f"Authentication error: {e}")
             return False
-    
-    def _start_email_auth(self, email: str) -> Optional[Dict[str, Any]]:
-        """Start email authentication process.
-        
-        Args:
-            email: User email address
-            
-        Returns:
-            Response data or None if failed
-        """
-        try:
-            url = f"{self.base_url}/auth/email/start-with-email"
-            payload = {"email": email}
-            
-            debug(f"Starting email auth for {email}")
-            response = self.session.post(url, json=payload)
-            response.raise_for_status()
-            
-            debug("Email authentication started successfully")
-            return response.json()
-            
-        except Exception as e:
-            exception(f"Start email auth error: {e}")
-            return None
     
     def _sign_in_with_password(self, email: str, password: str) -> Optional[requests.Response]:
         """Sign in with email and password.
