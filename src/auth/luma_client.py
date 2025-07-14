@@ -1,6 +1,7 @@
 """Luma API client for authentication and check-in operations."""
 
 import requests
+import json
 from src.utils.config import get_api_config
 from src.storage.credentials_manager import CredentialsManager
 from src.utils.logger import info, error, warning, debug, exception
@@ -32,20 +33,25 @@ class LumaClient:
             
             # Sign in with password
             url = f"{self.base_url}/auth/sign-in-with-password"
-            payload = {"email": email, "password": password}
+            payload = json.dumps({
+                "email": email,
+                "password": password
+            })
             
             debug("Signing in with password")
-            response = requests.post(url, json=payload, headers=self.headers)
-            response.raise_for_status()
+            response = requests.request("POST", url, headers=self.headers, data=payload)
+            
+            if response.status_code != 200:
+                error(f"Authentication failed with status code {response.status_code}")
+                return False
             
             # Extract cookies from response
-            cookies = {}
-            for cookie in response.cookies:
-                cookies[cookie.name] = cookie.value
-                debug(f"Extracted cookie: {cookie.name}={cookie.value}")
+            all_cookies = response.cookies.get_dict()
+            cookie_string = "; ".join([f"{name}={value}" for name, value in all_cookies.items()])
             
-            # Create proper cookie string (name=value pairs only)
-            cookie_string = "; ".join([f"{name}={value}" for name, value in cookies.items()])
+            debug(f"Authentication successful, got {len(all_cookies)} cookies")
+            for name, value in all_cookies.items():
+                debug(f"Extracted cookie: {name}={value[:20]}..." if len(value) > 20 else f"Extracted cookie: {name}={value}")
             
             if not cookie_string:
                 error("No cookies found in response")
@@ -53,7 +59,7 @@ class LumaClient:
                 
             debug(f"Extracted cookie string: {cookie_string[:50]}...")
             
-            # Store the proper cookie string
+            # Store the cookie string
             self.credentials_manager.save_cookie(cookie_string)
             
             info("Authentication successful with cookie saved")
@@ -64,7 +70,7 @@ class LumaClient:
             return False
     
     def check_in_to_event(self, event_api_id: str, proxy_key: str) -> bool:
-        """Check in to a Luma event using stored raw cookie string.
+        """Check in to a Luma event using stored cookie string.
         
         Args:
             event_api_id: Event API ID from QR code
@@ -76,47 +82,47 @@ class LumaClient:
         try:
             debug(f"Attempting check-in for event {event_api_id} with proxy key {proxy_key}")
             
-            # Load raw cookie string
+            # Load cookie string
             cookie_string = self.credentials_manager.load_cookie()
             if not cookie_string:
                 warning("No cookie found")
                 return False
             
-            # Make get-guest request with cookie header
+            # Prepare request
             url = f"{self.base_url}/event/admin/get-guest"
-            params = {
-                "event_api_id": event_api_id,
-                "proxy_key": proxy_key
-            }
+            query_params = f"?event_api_id={event_api_id}&proxy_key={proxy_key}"
+            full_url = url + query_params
             
-            # Set cookie header directly
-            headers = self.headers.copy()
-            headers["Cookie"] = cookie_string
-            
-            debug(f"Making request to: {url}")
-            debug(f"With params: {params}")
+            debug(f"Making request to: {full_url}")
             debug(f"Using Cookie header: {cookie_string[:30]}...")
             
-            response = requests.get(url, params=params, headers=headers)
+            # Make request using the approach from the example
+            response = requests.request("GET", full_url, headers=self.headers, data={})
             
-            # Check for status codes before attempting to parse JSON
+            # Handle response status codes
             if response.status_code == 401:
                 warning("Authentication expired, credentials invalid")
                 return False
             elif response.status_code == 404:
                 warning("Guest not found - invalid QR code or guest not registered")
                 return False
-            
-            # Verify response has content before parsing
-            if not response.text:
-                error("Empty response received from server")
+            elif response.status_code != 200:
+                error(f"Unexpected status code: {response.status_code}")
                 return False
             
-            response.raise_for_status()
+            # Verify response has valid content before parsing
+            try:
+                guest_data = response.json()
+                debug("Successfully parsed JSON response")
+            except Exception as e:
+                error(f"Failed to parse response as JSON: {e}")
+                error(f"Response content: {response.text[:100]}...")
+                return False
             
-            # Parse response to check guest details
-            guest_data = response.json()
             guest_info = guest_data.get("guest", {})
+            if not guest_info:
+                warning("No guest information in response")
+                return False
             
             info(f"✅ Guest found: {guest_info.get('name', 'Unknown')} ({guest_info.get('email', 'No email')})")
             
@@ -129,10 +135,6 @@ class LumaClient:
             
             return True
             
-        except requests.exceptions.JSONDecodeError as e:
-            error(f"Invalid JSON response: {e}")
-            error(f"Response text: {response.text[:100]}")  # Log part of the response
-            return False
         except Exception as e:
             exception(f"Check-in error: {e}")
             return False
