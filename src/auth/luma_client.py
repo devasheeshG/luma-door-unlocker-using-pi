@@ -38,17 +38,23 @@ class LumaClient:
             response = requests.post(url, json=payload, headers=self.headers)
             response.raise_for_status()
             
-            # Get the raw Set-Cookie header
-            set_cookie_header = response.headers.get("Set-Cookie")
-            if not set_cookie_header:
-                error("No Set-Cookie headers found in response")
+            # Extract cookies from response
+            cookies = {}
+            for cookie in response.cookies:
+                cookies[cookie.name] = cookie.value
+                debug(f"Extracted cookie: {cookie.name}={cookie.value}")
+            
+            # Create proper cookie string (name=value pairs only)
+            cookie_string = "; ".join([f"{name}={value}" for name, value in cookies.items()])
+            
+            if not cookie_string:
+                error("No cookies found in response")
                 return False
                 
-            # Join all Set-Cookie headers with semicolons
-            debug(f"Extracted Set-Cookie header: {set_cookie_header[:50]}...")
+            debug(f"Extracted cookie string: {cookie_string[:50]}...")
             
-            # Store just the raw cookie string
-            self.credentials_manager.save_cookie(set_cookie_header)
+            # Store the proper cookie string
+            self.credentials_manager.save_cookie(cookie_string)
             
             info("Authentication successful with cookie saved")
             return True
@@ -93,11 +99,17 @@ class LumaClient:
             
             response = requests.get(url, params=params, headers=headers)
             
+            # Check for status codes before attempting to parse JSON
             if response.status_code == 401:
                 warning("Authentication expired, credentials invalid")
                 return False
             elif response.status_code == 404:
                 warning("Guest not found - invalid QR code or guest not registered")
+                return False
+            
+            # Verify response has content before parsing
+            if not response.text:
+                error("Empty response received from server")
                 return False
             
             response.raise_for_status()
@@ -117,6 +129,10 @@ class LumaClient:
             
             return True
             
+        except requests.exceptions.JSONDecodeError as e:
+            error(f"Invalid JSON response: {e}")
+            error(f"Response text: {response.text[:100]}")  # Log part of the response
+            return False
         except Exception as e:
             exception(f"Check-in error: {e}")
             return False
