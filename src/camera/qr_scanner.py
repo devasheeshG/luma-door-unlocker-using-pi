@@ -2,6 +2,7 @@
 
 import cv2
 import time
+import numpy as np
 from pyzbar import pyzbar
 from typing import Optional, Callable
 import threading
@@ -10,7 +11,7 @@ from src.utils.logger import info, error, warning, debug, exception
 
 
 class QRScanner:
-    """QR code scanner using camera input."""
+    """QR code scanner using camera input with improved detection."""
     
     def __init__(self):
         """Initialize QR scanner with camera configuration."""
@@ -19,10 +20,13 @@ class QRScanner:
         self.camera = None
         self.is_running = False
         self.scan_thread = None
+        self.last_detected_qr = None
+        self.last_detection_time = 0
+        self.duplicate_threshold = self.qr_config.get("duplicate_threshold", 3)  # seconds to ignore duplicate QR codes
         debug("QR Scanner initialized")
         
     def initialize_camera(self) -> bool:
-        """Initialize camera device.
+        """Initialize camera device with optimized settings.
         
         Returns:
             True if camera initialized successfully, False otherwise
@@ -36,12 +40,13 @@ class QRScanner:
                 error(f"Could not open camera device {device_index}")
                 return False
             
-            # Set camera properties
-            frame_width = self.camera_config.get("frame_width", 640)
-            frame_height = self.camera_config.get("frame_height", 480)
+            # Set camera properties for better QR detection
+            frame_width = self.camera_config.get("frame_width", 1280)
+            frame_height = self.camera_config.get("frame_height", 720)
             
             self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, frame_width)
             self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, frame_height)
+            self.camera.set(cv2.CAP_PROP_AUTOFOCUS, 1)
             
             info(f"Camera initialized successfully on device {device_index} ({frame_width}x{frame_height})")
             return True
@@ -50,8 +55,44 @@ class QRScanner:
             exception(f"Error initializing camera: {e}")
             return False
     
+    def preprocess_frame(self, frame: np.ndarray) -> list:
+        """Preprocess frame with multiple techniques for better QR detection.
+        
+        Args:
+            frame: Input frame from camera
+            
+        Returns:
+            List of processed frames to try for QR detection
+        """
+        processed_frames = []
+        
+        try:
+            # Convert to grayscale
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            processed_frames.append(gray)
+            
+            # Gaussian blur to reduce noise
+            blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+            processed_frames.append(blurred)
+            
+            # Adaptive threshold for better contrast
+            adaptive_thresh = cv2.adaptiveThreshold(
+                gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
+            )
+            processed_frames.append(adaptive_thresh)
+            
+            # Histogram equalization
+            equalized = cv2.equalizeHist(gray)
+            processed_frames.append(equalized)
+            
+            return processed_frames
+            
+        except Exception as e:
+            exception(f"Error preprocessing frame: {e}")
+            return [cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)]  # Fallback
+    
     def scan_qr_code(self, frame) -> Optional[str]:
-        """Scan for QR codes in the given frame.
+        """Scan for QR codes using multiple detection strategies.
         
         Args:
             frame: Camera frame to scan
@@ -60,24 +101,47 @@ class QRScanner:
             QR code data if found, None otherwise
         """
         try:
-            debug(f"Scanning frame at {time.time()}")
+            # Get multiple processed versions of the frame
+            processed_frames = self.preprocess_frame(frame)
             
-            # Convert frame to grayscale for better QR detection
-            gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            
-            # Detect QR codes
-            qr_codes = pyzbar.decode(gray_frame)
-            
-            for qr_code in qr_codes:
-                # Decode QR code data
-                qr_data = qr_code.data.decode('utf-8')
-                
-                # Check if QR code matches expected Luma format
-                if self.is_valid_luma_qr(qr_data):
-                    debug(f"Valid Luma QR code detected: {qr_data}")
-                    return qr_data
-                else:
-                    debug(f"Non-Luma QR code detected: {qr_data}")
+            for i, processed_frame in enumerate(processed_frames):
+                try:
+                    qr_codes = pyzbar.decode(processed_frame)
+                    
+                    if qr_codes:
+                        debug(f"QR codes found using preprocessing method {i}")
+                        
+                        for qr_code in qr_codes:
+                            try:
+                                # Decode QR code data
+                                qr_data = qr_code.data.decode('utf-8')
+                                # FIXME: sometimes also need to do url decode
+                                
+                                # Check for duplicates
+                                current_time = time.time()
+                                if (self.last_detected_qr == qr_data and 
+                                    current_time - self.last_detection_time < self.duplicate_threshold):
+                                    debug(f"Ignoring duplicate QR code: {qr_data}")
+                                    continue
+                                
+                                # Update last detection
+                                self.last_detected_qr = qr_data
+                                self.last_detection_time = current_time
+                                
+                                # Check if QR code matches expected Luma format
+                                if self.is_valid_luma_qr(qr_data):
+                                    info(f"Valid Luma QR code detected: {qr_data}")
+                                    return qr_data
+                                else:
+                                    debug(f"Non-Luma QR code detected: {qr_data}")
+                                    
+                            except UnicodeDecodeError as e:
+                                warning(f"Failed to decode QR code data: {e}")
+                                continue
+                                
+                except Exception as e:
+                    debug(f"Error in preprocessing method {i}: {e}")
+                    continue
             
             return None
             
@@ -135,7 +199,7 @@ class QRScanner:
             return None, None
     
     def start_scanning(self, qr_callback: Callable[[str, str, str], None]) -> None:
-        """Start continuous QR code scanning.
+        """Start continuous QR code scanning with improved performance.
         
         Args:
             qr_callback: Callback function to call when QR code is detected
@@ -146,18 +210,26 @@ class QRScanner:
             return
         
         self.is_running = True
-        # scan_interval = self.camera_config.get("scan_interval", 0.5)
         
         info("Starting QR code scanning...")
-        # info(f"Scan interval: {scan_interval}s")
+        
+        frame_count = 0
+        successful_scans = 0
         
         try:
             while self.is_running:
                 ret, frame = self.camera.read()
                 
-                if not ret:
+                if not ret or frame is None:
                     error("Could not read frame from camera")
-                    break
+                    time.sleep(0.1)
+                    continue
+                
+                frame_count += 1
+                
+                # Skip some frames for performance (process every 3rd frame)
+                if frame_count % 3 != 0:
+                    continue
                 
                 # Scan for QR codes
                 qr_data = self.scan_qr_code(frame)
@@ -166,19 +238,18 @@ class QRScanner:
                     event_id, proxy_key = self.extract_event_and_proxy_key(qr_data)
                     
                     if event_id and proxy_key:
-                        debug(f"Processing QR code - Event: {event_id}, Proxy: {proxy_key}")
+                        successful_scans += 1
+                        info(f"Processing QR code #{successful_scans} - Event: {event_id}")
                         qr_callback(qr_data, event_id, proxy_key)
                     else:
                         warning("Failed to parse event ID and proxy key from QR code")
-                
-                # Wait before next scan
-                # time.sleep(scan_interval)
                 
         except KeyboardInterrupt:
             info("Scanning interrupted by user")
         except Exception as e:
             exception(f"Error during scanning: {e}")
         finally:
+            info(f"Scan complete. Processed {frame_count} frames, found {successful_scans} valid QR codes")
             self.stop_scanning()
     
     def start_scanning_async(self, qr_callback: Callable[[str, str, str], None]) -> None:
