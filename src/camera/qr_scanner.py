@@ -103,7 +103,8 @@ class QRScanner:
         """
         try:
             # Get multiple processed versions of the frame
-            processed_frames = self.preprocess_frame(frame)
+            # processed_frames = self.preprocess_frame(frame)
+            processed_frames = [frame]
             
             for i, processed_frame in enumerate(processed_frames):
                 try:
