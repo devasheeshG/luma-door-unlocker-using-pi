@@ -1,19 +1,4 @@
 {
-    "api": {
-        "base_url": "https://api.lu.ma",
-        "headers": {
-            "User-Agent": "Mozilla/5.0 (X11; Linux armv7l) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-            "Accept": "*/*",
-            "Accept-Language": "en",
-            "Accept-Encoding": "gzip, deflate, br",
-            "Content-Type": "application/json",
-            "Origin": "https://lu.ma",
-            "Referer": "https://lu.ma/",
-            "X-Luma-Client-Type": "luma-web",
-            "X-Luma-Client-Version": "d799f2bcdceec685f55811350f8eeffc67534a5f",
-            "X-Luma-Web-Url": "https://lu.ma/signin"
-        }
-    },
     "camera": {
         "device_index": 0,
         "frame_width": 1280,

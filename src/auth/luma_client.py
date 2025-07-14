@@ -12,9 +12,7 @@ class LumaClient:
     
     def __init__(self):
         """Initialize Luma API client."""
-        self.api_config = get_api_config()
-        self.base_url = self.api_config.get("base_url", "https://api.lu.ma")
-        self.headers = self.api_config.get("headers", {})
+        self.base_url = "https://api.lu.ma"
         self.credentials_manager = CredentialsManager()
         debug("Luma API client initialized")
     
@@ -39,7 +37,10 @@ class LumaClient:
             })
             
             debug("Signing in with password")
-            response = requests.request("POST", url, headers=self.headers, data=payload)
+            headers = {
+                'Content-Type': 'application/json',
+            }
+            response = requests.request("POST", url, headers=headers, data=payload)
             
             if response.status_code != 200:
                 error(f"Authentication failed with status code {response.status_code}")
@@ -97,7 +98,11 @@ class LumaClient:
             debug(f"Using Cookie header: {cookie_string[:30]}...")
             
             # Make request using the approach from the example
-            response = requests.request("GET", full_url, headers=self.headers, data={})
+            headers = {
+                'Content-Type': 'application/json',
+                'Cookie': cookie_string
+            }
+            response = requests.request("GET", full_url, headers=headers, data={})
             
             # Handle response status codes
             if response.status_code == 401:
