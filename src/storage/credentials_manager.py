@@ -4,7 +4,7 @@ import json
 import os
 from pathlib import Path
 from typing import Optional
-from src.utils.logger import info, error, warning, debug, exception
+from src.utils.logger import info, error, debug, exception
 
 
 class CredentialsManager:

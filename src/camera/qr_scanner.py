@@ -6,6 +6,7 @@ import numpy as np
 from pyzbar import pyzbar
 from typing import Optional, Callable
 import threading
+import urllib.parse
 from src.utils.config import get_camera_config, get_qr_config
 from src.utils.logger import info, error, warning, debug, exception
 
@@ -115,7 +116,12 @@ class QRScanner:
                             try:
                                 # Decode QR code data
                                 qr_data = qr_code.data.decode('utf-8')
-                                # FIXME: sometimes also need to do url decode
+                                
+                                # URL decode the data if it contains URL-encoded characters
+                                if '%' in qr_data:
+                                    original_qr_data = qr_data
+                                    qr_data = urllib.parse.unquote(qr_data)
+                                    debug(f"URL decoded QR code: {original_qr_data} → {qr_data}")
                                 
                                 # Check for duplicates
                                 current_time = time.time()
@@ -183,13 +189,22 @@ class QRScanner:
             # Remove base URL to get event ID and query params
             remaining = qr_data[len(url_pattern):]
             
-            if "?pk=" not in remaining:
+            # Handle both normal and URL-encoded question mark
+            if "?pk=" in remaining:
+                # Standard format
+                event_id, query_params = remaining.split("?pk=", 1)
+            elif "pk=" in remaining:
+                # In case the question mark was already decoded
+                parts = remaining.split("pk=", 1)
+                # Extract event ID by removing any trailing characters
+                event_id = parts[0].rstrip("?&")
+                query_params = parts[1]
+            else:
                 debug("QR code missing proxy key parameter")
                 return None, None
             
-            # Split event ID and proxy key
-            event_id, query_params = remaining.split("?pk=", 1)
-            proxy_key = query_params.split("&")[0]  # Get first param in case there are multiple
+            # Get the proxy key (handle potential additional parameters)
+            proxy_key = query_params.split("&")[0]
             
             debug(f"Extracted event_id: {event_id}, proxy_key: {proxy_key}")
             return event_id, proxy_key
